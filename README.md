@@ -1,10 +1,12 @@
 # Riago
 
-Riago is a Riak client for Go. It's currently a work in progress - not suitable for production use.
+[![Build Status](https://secure.travis-ci.org/jcoene/riago.png?branch=master)](http://travis-ci.org/jcoene/riago)
+
+Riago is a Riak client for Go. It's currently a work in progress.
 
 ## Why another client?
 
-Riak is a nuanced data store - proper usage is very important. It has an explicit API defined via protobuf. Other Go clients make an effort to hide the ugly protobuf interface behind more friendly abstractions. This tends to make simple tasks easy but can cause confusing behavior if your patterns don't match that of the client library.
+Riak is a nuanced data store with an explicit API defined via protobuf. Other Go clients make an effort to hide the protobuf interface behind more friendly abstractions. This tends to make simple operations easy but can cause confusing behavior if your usage patterns don't match that of the client library.
 
 Riago takes a different approach. Based on the assumption that the protobuf interface is the ideal developer API for Riak, Riago embraces and exposes the protobuf structures directly. Riago handles connection pooling, protobuf plumbing and error handling but otherwise gets out of your way.
 
@@ -52,4 +54,6 @@ func main() {
 
 ## License and Credits
 
-Riago is licensed under the Apache license, see LICENSE.txt for details. Riago is heavily inspired by and borrows from the mrb/riakpbc and tpjg/goriakpbc projects, thank you to the original authors and all their contributors.
+Riago is licensed under the Apache license, see LICENSE.txt for details.
+
+Riago is heavily inspired by and borrows from the [mrb/riakpbc](https://github.com/mrb/riakpbc) and [tpjg/goriakpbc](https://github.com/tpjg/goriakpbc) projects. Thank you to the original authors and all their contributors!
