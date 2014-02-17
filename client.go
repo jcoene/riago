@@ -101,6 +101,38 @@ func (c *Client) ListBuckets(req *RpbListBucketsReq) (resp *RpbListBucketsResp, 
 	return
 }
 
+// Perform a Riak Map Reduce request. Returns multiple map-reduce responses.
+func (c *Client) MapRed(req *RpbMapRedReq) (resps []*RpbMapRedResp, err error) {
+	err = c.with(func(conn *Conn) (e error) {
+		// Issue the MapRed request once
+		if e = conn.request(MsgRpbMapRedReq, req); e != nil {
+			return
+		}
+
+		// MapRed may produce multiple responses
+		resps = make([]*RpbMapRedResp, 0)
+		for {
+			// Receive the next response
+			resp := &RpbMapRedResp{}
+			if e = conn.response(resp); e != nil {
+				return
+			}
+
+			// Add the response to the result
+			resps = append(resps, resp)
+
+			// Stop receiving responses if the server tells us we're done
+			if resp.GetDone() {
+				break
+			}
+		}
+
+		return
+	})
+
+	return
+}
+
 // Performs a single request with a single response
 func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error) {
 	err = c.with(func(conn *Conn) (e error) {
