@@ -6,14 +6,15 @@ Riago is a Riak client for Go. It's currently a work in progress.
 
 ## Why another client?
 
-Riak is a nuanced data store with an explicit API defined via protobuf. Other Go clients make an effort to hide the protobuf interface behind more friendly abstractions. This tends to make simple operations easy but can cause confusing behavior if your usage patterns don't match that of the client library.
+Riak is a nuanced data store with an explicit PBC (Protocol Buffers Client) API. Other Go clients make an effort to hide this API behind more friendly abstractions. This tends to make simple operations easy but can cause confusing behavior if your usage patterns don't match that of the client library.
 
-Riago takes a different approach. Based on the assumption that the protobuf interface is the ideal developer API for Riak, Riago embraces and exposes the protobuf structures directly. Riago handles connection pooling, protobuf plumbing and error handling but otherwise gets out of your way.
+Riago takes a different approach. Based on the assumption that the PBC API is the ideal development interface for Riak, Riago embraces and exposes these structures directly. Riago handles connection pooling, encoding and decoding, socket plumbing and error handling but otherwise gets out of your way.
 
 ## Features
 
-- Protobuf interface
+- Protocol Buffers interface
 - Connection pooling
+- Customizable retry behavior
 - Sane error handling (operation time errors, safe type assertions)
 
 ## Usage Example
@@ -50,7 +51,7 @@ func main() {
 ## TODO
 
 - Support for more operations
-- Customizable retry behavior
+- Instrumentation hooks
 
 ## License and Credits
 
