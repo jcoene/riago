@@ -13,11 +13,10 @@ import (
 // Conn represents an individual connection to a Riak host.
 type Conn struct {
 	addr         string
-	conn         net.Conn
+	conn         *net.TCPConn
 	ok           bool
 	padlock      int32
 	mutex        sync.Mutex
-	dialTimeout  time.Duration
 	readTimeout  time.Duration
 	writeTimeout time.Duration
 }
@@ -50,16 +49,22 @@ func (c *Conn) Recover() error {
 func (c *Conn) dial() (err error) {
 	c._assert_locked(true) // xxx: temp
 
-	if c.dialTimeout > 0 {
-		c.conn, err = net.DialTimeout("tcp", c.addr, c.dialTimeout)
-	} else {
-		c.conn, err = net.Dial("tcp", c.addr)
+	var tcpAddr *net.TCPAddr
+
+	if tcpAddr, err = net.ResolveTCPAddr("tcp", c.addr); err != nil {
+		return
+	}
+
+	if c.conn, err = net.DialTCP("tcp", nil, tcpAddr); err != nil {
+		return
 	}
 
 	if err != nil {
 		c.conn = nil
 		return
 	}
+
+	c.conn.SetKeepAlive(true)
 
 	c.ok = true
 

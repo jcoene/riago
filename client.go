@@ -11,7 +11,6 @@ type Client struct {
 	pool          *Pool
 	retryAttempts int
 	retryDelay    time.Duration
-	dialTimeout   time.Duration
 	readTimeout   time.Duration
 	writeTimeout  time.Duration
 }
@@ -44,12 +43,6 @@ func (c *Client) SetReadTimeout(dur time.Duration) {
 // SetWriteTimeout establishes a timeout deadline for all connection write.
 func (c *Client) SetWriteTimeout(dur time.Duration) {
 	c.writeTimeout = dur
-}
-
-// SetDialTimeout establishes a timeout deadline for how long to wait for
-// a connection to connect before returning an error.
-func (c *Client) SetDialTimeout(dur time.Duration) {
-	c.dialTimeout = dur
 }
 
 // SetWaitTimeout establishes a timeout deadline for how long to wait for
@@ -103,7 +96,6 @@ func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error
 	conn.lock()
 	defer conn.unlock()
 
-	conn.dialTimeout = c.dialTimeout
 	conn.readTimeout = c.readTimeout
 	conn.writeTimeout = c.writeTimeout
 
