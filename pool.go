@@ -22,7 +22,8 @@ type Pool struct {
 }
 
 // Creates a new Pool for a given host and connection count.
-// Connections are created but not dialed.
+// Dials all connections before returning to prevent a stampede.
+// Connections that fail to connect will retry in the background.
 func NewPool(addr string, count int) (p *Pool) {
 	p = &Pool{
 		count:       count,
@@ -32,7 +33,12 @@ func NewPool(addr string, count int) (p *Pool) {
 
 	for i := 0; i < count; i++ {
 		c := NewConn(addr)
-		p.conns <- c
+
+		if err := c.Recover(); err != nil {
+			p.Fail(c)
+		} else {
+			p.Put(c)
+		}
 	}
 
 	return
