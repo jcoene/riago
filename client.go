@@ -101,7 +101,21 @@ func (c *Client) ListBuckets(req *RpbListBucketsReq) (resp *RpbListBucketsResp, 
 	return
 }
 
+// Performs a single request with a single response
 func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error) {
+	err = c.with(func(conn *Conn) (e error) {
+		if e = conn.request(code, req); e == nil {
+			e = conn.response(resp)
+		}
+
+		return
+	})
+
+	return
+}
+
+// Gets and prepares a connection, yields it to the given function and returns the error.
+func (c *Client) with(fn func(*Conn) error) (err error) {
 	var conn *Conn
 
 	if conn, err = c.pool.Get(); err != nil {
@@ -109,28 +123,24 @@ func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error
 	}
 
 	conn.lock()
-	defer conn.unlock()
 
 	conn.readTimeout = c.readTimeout
 	conn.writeTimeout = c.writeTimeout
 
-	if err = conn.request(code, req); err != nil {
+	if err = fn(conn); err != nil {
 		conn.close()
+		conn.unlock()
 		c.pool.Fail(conn)
 		return
 	}
 
-	if err = conn.response(resp); err != nil {
-		conn.close()
-		c.pool.Fail(conn)
-		return
-	}
-
+	conn.unlock()
 	c.pool.Put(conn)
 
 	return
 }
 
+// Retries a function multiple times until it does not return an error.
 func (c *Client) retry(fn func() error) (err error) {
 	for i := 0; i <= c.retryAttempts; i++ {
 		if err = fn(); err == nil {
