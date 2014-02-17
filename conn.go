@@ -1,18 +1,13 @@
 package riago
 
 import (
-	"errors"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
-)
-
-var (
-	ErrInvalidResponseHeader  = errors.New("invalid response header")
-	ErrIncompleteResponseBody = errors.New("incomplete response body")
 )
 
 // Conn represents an individual connection to a Riak host.
@@ -145,31 +140,21 @@ func (c *Conn) read() (buf []byte, err error) {
 
 	var sizebuf []byte
 	var size int
-	var n int
 
 	if c.readTimeout > 0 {
 		c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
 	}
 
 	sizebuf = make([]byte, 4)
-	if n, err = c.conn.Read(sizebuf); err != nil {
-		return
-	}
-
-	if n != 4 {
-		err = ErrInvalidResponseHeader
+	if _, err = io.ReadFull(c.conn, sizebuf); err != nil {
 		return
 	}
 
 	size = int(sizebuf[0])<<24 + int(sizebuf[1])<<16 + int(sizebuf[2])<<8 + int(sizebuf[3])
 	buf = make([]byte, size)
 
-	if n, err = c.conn.Read(buf); err != nil {
+	if _, err = io.ReadFull(c.conn, buf); err != nil {
 		return
-	}
-
-	if n != size {
-		err = ErrIncompleteResponseBody
 	}
 
 	return
