@@ -69,6 +69,14 @@ func (c *Client) Put(req *RpbPutReq) (resp *RpbPutResp, err error) {
 	return
 }
 
+// Performs a Riak Del request.
+func (c *Client) Del(req *RpbDelReq) (err error) {
+	err = c.retry(func() error {
+		return c.do(MsgRpbDelReq, req, nil)
+	})
+	return
+}
+
 // Perform a Riak Get Bucket request.
 func (c *Client) GetBucket(req *RpbGetBucketReq) (resp *RpbGetBucketResp, err error) {
 	resp = &RpbGetBucketResp{}

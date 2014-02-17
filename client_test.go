@@ -95,5 +95,15 @@ func TestClientKV(t *testing.T) {
 			So(getValue, ShouldEqual, putValue)
 			So(getContentType, ShouldEqual, putContentType)
 		})
+
+		Convey("Can delete an object", func() {
+			delReq := &RpbDelReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("client_test_del"),
+			}
+
+			delErr := client.Del(delReq)
+			So(delErr, ShouldEqual, nil)
+		})
 	})
 }
