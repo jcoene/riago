@@ -105,5 +105,28 @@ func TestClientKV(t *testing.T) {
 			delErr := client.Del(delReq)
 			So(delErr, ShouldEqual, nil)
 		})
+
+		Convey("Can list buckets", func() {
+			setReq := &RpbSetBucketReq{
+				Bucket: []byte("riago_test"),
+				Props:  &RpbBucketProps{},
+			}
+
+			setErr := client.SetBucket(setReq)
+			So(setErr, ShouldEqual, nil)
+
+			listReq := &RpbListBucketsReq{}
+			listResp, listErr := client.ListBuckets(listReq)
+			So(listErr, ShouldEqual, nil)
+
+			found := false
+			for _, b := range listResp.GetBuckets() {
+				if string(b) == "riago_test" {
+					found = true
+					break
+				}
+			}
+			So(found, ShouldEqual, true)
+		})
 	})
 }

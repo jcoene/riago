@@ -94,6 +94,13 @@ func (c *Client) SetBucket(req *RpbSetBucketReq) (err error) {
 	return
 }
 
+// Perform a Riak List Buckets request.
+func (c *Client) ListBuckets(req *RpbListBucketsReq) (resp *RpbListBucketsResp, err error) {
+	resp = &RpbListBucketsResp{}
+	err = c.do(MsgRpbListBucketsReq, req, resp)
+	return
+}
+
 func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error) {
 	var conn *Conn
 
