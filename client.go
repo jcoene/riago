@@ -8,17 +8,32 @@ import (
 
 // Client represents a Riak client instance.
 type Client struct {
-	pool         *Pool
-	dialTimeout  time.Duration
-	readTimeout  time.Duration
-	writeTimeout time.Duration
+	pool          *Pool
+	retryAttempts int
+	retryDelay    time.Duration
+	dialTimeout   time.Duration
+	readTimeout   time.Duration
+	writeTimeout  time.Duration
 }
 
 // NewClient creates a new Riago client with a given address and pool count.
 func NewClient(addr string, count int) (c *Client) {
 	return &Client{
-		pool: NewPool(addr, count),
+		pool:          NewPool(addr, count),
+		retryAttempts: 0,
+		retryDelay:    500 * time.Millisecond,
 	}
+}
+
+// SetRetryAttempts sets the number of times an operation will be retried before
+// returning an error.
+func (c *Client) SetRetryAttempts(n int) {
+	c.retryAttempts = n
+}
+
+// SetRetryDelay sets the delay between retries.
+func (c *Client) SetRetryDelay(dur time.Duration) {
+	c.retryDelay = dur
 }
 
 // SetReadTimeout establishes a timeout deadline for all connection reads.
@@ -46,27 +61,35 @@ func (c *Client) SetWaitTimeout(dur time.Duration) {
 // Performs a Riak Get request.
 func (c *Client) Get(req *RpbGetReq) (resp *RpbGetResp, err error) {
 	resp = &RpbGetResp{}
-	err = c.do(MsgRpbGetReq, req, resp)
+	err = c.retry(func() error {
+		return c.do(MsgRpbGetReq, req, resp)
+	})
 	return
 }
 
 // Performs a Riak Put request.
 func (c *Client) Put(req *RpbPutReq) (resp *RpbPutResp, err error) {
 	resp = &RpbPutResp{}
-	err = c.do(MsgRpbPutReq, req, resp)
+	err = c.retry(func() error {
+		return c.do(MsgRpbPutReq, req, resp)
+	})
 	return
 }
 
 // Perform a Riak Get Bucket request.
 func (c *Client) GetBucket(req *RpbGetBucketReq) (resp *RpbGetBucketResp, err error) {
 	resp = &RpbGetBucketResp{}
-	err = c.do(MsgRpbGetBucketReq, req, resp)
+	err = c.retry(func() error {
+		return c.do(MsgRpbGetBucketReq, req, resp)
+	})
 	return
 }
 
 // Perform a Riak Set Bucket request.
 func (c *Client) SetBucket(req *RpbSetBucketReq) (err error) {
-	err = c.do(MsgRpbSetBucketReq, req, nil)
+	err = c.retry(func() error {
+		return c.do(MsgRpbSetBucketReq, req, nil)
+	})
 	return
 }
 
@@ -97,6 +120,20 @@ func (c *Client) do(code byte, req proto.Message, resp proto.Message) (err error
 	}
 
 	c.pool.Put(conn)
+
+	return
+}
+
+func (c *Client) retry(fn func() error) (err error) {
+	for i := 0; i <= c.retryAttempts; i++ {
+		if err = fn(); err == nil {
+			return
+		}
+
+		if c.retryDelay > 0 {
+			<-time.After(c.retryDelay)
+		}
+	}
 
 	return
 }

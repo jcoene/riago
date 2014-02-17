@@ -12,6 +12,11 @@ func TestClientInstance(t *testing.T) {
 		client := NewClient("127.0.0.1:8087", 3)
 		dur := 500 * time.Millisecond
 
+		Convey("Can set retry attempts", func() {
+			client.SetRetryAttempts(3)
+			So(client.retryAttempts, ShouldEqual, 3)
+		})
+
 		Convey("Can set read timeout", func() {
 			client.SetReadTimeout(dur)
 			So(client.readTimeout, ShouldEqual, dur)
