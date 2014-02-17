@@ -65,13 +65,13 @@ func TestClientKV(t *testing.T) {
 			So(getResp.GetProps().GetLastWriteWins(), ShouldEqual, true)
 		})
 
-		Convey("Can put and get a response", func() {
+		Convey("Can put and get an object", func() {
 			putValue := "{\"hello\": \"world\"}"
 			putContentType := "application/json"
 
 			putReq := &RpbPutReq{
 				Bucket: []byte("riago_test"),
-				Key:    []byte("client_get_response"),
+				Key:    []byte("client_test_put_get"),
 				Content: &RpbContent{
 					Value:       []byte(putValue),
 					ContentType: []byte(putContentType),
@@ -83,7 +83,7 @@ func TestClientKV(t *testing.T) {
 
 			getReq := &RpbGetReq{
 				Bucket: []byte("riago_test"),
-				Key:    []byte("client_get_response"),
+				Key:    []byte("client_test_put_get"),
 			}
 
 			getResp, getErr := client.Get(getReq)
