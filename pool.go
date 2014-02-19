@@ -65,6 +65,15 @@ func (p *Pool) Get() (c *Conn, err error) {
 		return
 	}
 
+	// Optimistically try a non-blocking read to avoid a timer.
+	select {
+	case c = <-p.conns:
+		return
+	default:
+		break
+	}
+
+	// Fall back to waiting on a timer.
 	select {
 	case c = <-p.conns:
 		break
