@@ -10,29 +10,12 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func inst(p *Profile) {
-	p.String()
+type WithId struct {
+	Id int64 `json:"id"`
 }
 
-func mapRedUnionQuery(bucket string, keys []string) (query string) {
-	query = `{"inputs":`
-
-	if len(keys) == 0 {
-		query += `"` + bucket + `"`
-	} else {
-		query += `[`
-		for i, key := range keys {
-			if i > 0 {
-				query += `,`
-			}
-			query += `["` + bucket + `", "` + key + `"]`
-		}
-		query += `]`
-	}
-
-	query += `,"query": [{"map":{"language":"erlang","module":"riak_kv_mapreduce","function":"map_object_value"}},{"reduce":{"language":"erlang","module":"riak_kv_mapreduce","function":"reduce_set_union"}}]}`
-
-	return
+func inst(p *Profile) {
+	p.String()
 }
 
 func TestClientInstance(t *testing.T) {
@@ -255,7 +238,7 @@ func TestClientKV(t *testing.T) {
 				So(err, ShouldEqual, nil)
 			}
 
-			query := mapRedUnionQuery("riago_test", keys)
+			query := genUnionMapRedQuery("riago_test", keys)
 
 			mapRedReq := &RpbMapRedReq{
 				Request:     []byte(query),
@@ -279,6 +262,46 @@ func TestClientKV(t *testing.T) {
 			}
 
 			So(found, ShouldEqual, n)
+		})
+	})
+}
+
+func TestGetManyJson(t *testing.T) {
+	client := NewClient("127.0.0.1:8087", 3)
+
+	Convey("GetManyJson", t, func() {
+		n := 15
+		keys := make([]string, n)
+		for i := 0; i < n; i++ {
+			k := fmt.Sprintf("client_test_getmanyjson_%d", i)
+			v := fmt.Sprintf("{\"id\": %d}", i)
+
+			keys[i] = k
+			putReq := &RpbPutReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte(k),
+				Content: &RpbContent{
+					Value:       []byte(v),
+					ContentType: []byte("application/json"),
+				},
+			}
+
+			_, err := client.Put(putReq)
+			So(err, ShouldEqual, nil)
+		}
+
+		Convey("Gets many json documents", func() {
+			jsons, err := client.GetManyJson("riago_test", keys)
+			So(len(jsons), ShouldEqual, n)
+			So(err, ShouldEqual, nil)
+
+			for _, j := range jsons {
+				tmp := new(WithId)
+				err = json.Unmarshal([]byte(j), &tmp)
+				So(err, ShouldEqual, nil)
+				So(tmp.Id, ShouldBeGreaterThan, -1)
+				So(tmp.Id, ShouldBeLessThan, n+1)
+			}
 		})
 	})
 }
