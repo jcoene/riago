@@ -58,6 +58,17 @@ func (c *Client) SetInstrumenter(fn func(*Profile)) {
 	c.instrumenter = fn
 }
 
+// Performs a Riak Server info request.
+func (c *Client) ServerInfo() (resp *RpbGetServerInfoResp, err error) {
+	prof := NewProfile("server_info", "")
+	defer c.instrument(prof, err)
+
+	resp = &RpbGetServerInfoResp{}
+	err = c.do(MsgRpbGetServerInfoReq, nil, resp, prof)
+
+	return
+}
+
 // Performs a single request with a single response
 func (c *Client) do(code byte, req proto.Message, resp proto.Message, prof *Profile) (err error) {
 	err = c.with(func(conn *Conn) (e error) {

@@ -64,8 +64,10 @@ func encode(code byte, req proto.Message) (buf []byte, err error) {
 	var reqbuf []byte
 	var size int32
 
-	if reqbuf, err = proto.Marshal(req); err != nil {
-		return
+	if req != nil {
+		if reqbuf, err = proto.Marshal(req); err != nil {
+			return
+		}
 	}
 
 	size = int32(len(reqbuf) + 1)

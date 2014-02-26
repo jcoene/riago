@@ -71,6 +71,16 @@ func TestClientInstance(t *testing.T) {
 			So(client.pool.waitTimeout, ShouldEqual, dur)
 		})
 	})
+
+	Convey("Server Operations", t, func() {
+		Convey("Can get server version", func() {
+			client := NewClient("127.0.0.1:8087", 1)
+			resp, err := client.ServerInfo()
+			So(err, ShouldEqual, nil)
+			So(string(resp.GetNode()), ShouldContainSubstring, "@")
+			So(string(resp.GetServerVersion()), ShouldContainSubstring, ".")
+		})
+	})
 }
 
 func TestClientKV(t *testing.T) {
