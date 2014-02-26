@@ -37,14 +37,15 @@ func TestPool(t *testing.T) {
 	})
 
 	Convey("Manages many connections", t, func() {
-		p := NewPool("127.0.0.1:8087", 20)
+		n := 5
+		p := NewPool("127.0.0.1:8087", n)
 		p.waitTimeout = 5 * time.Millisecond
 
 		var err error
-		conns := make([]*Conn, 20)
+		conns := make([]*Conn, n)
 
-		// Check out 20
-		for i := 0; i < 20; i++ {
+		// Check out n
+		for i := 0; i < n; i++ {
 			conns[i], err = p.Get()
 			So(err, ShouldEqual, nil)
 		}
@@ -71,7 +72,8 @@ func TestPool(t *testing.T) {
 	})
 
 	Convey("Manages many connections concurrently", t, func() {
-		p := NewPool("127.0.0.1:8087", 50)
+		n := 5
+		p := NewPool("127.0.0.1:8087", n)
 
 		doStuff := func(p *Pool) {
 			// Check out a conn
@@ -86,7 +88,7 @@ func TestPool(t *testing.T) {
 		}
 
 		// Do a bunch of stuff
-		for i := 0; i < 50; i++ {
+		for i := 0; i < n; i++ {
 			go doStuff(p)
 		}
 
@@ -98,7 +100,8 @@ func TestPool(t *testing.T) {
 	})
 
 	Convey("Manages many failing connections concurrently", t, func() {
-		p := NewPool("127.0.0.1:8087", 50)
+		n := 5
+		p := NewPool("127.0.0.1:8087", n)
 
 		doStuffBadly := func(p *Pool) {
 			// Check out a conn
@@ -117,7 +120,7 @@ func TestPool(t *testing.T) {
 		}
 
 		// Do a bunch of stuff, some of it will fail
-		for i := 0; i < 50; i++ {
+		for i := 0; i < n; i++ {
 			go doStuffBadly(p)
 		}
 
@@ -129,7 +132,8 @@ func TestPool(t *testing.T) {
 	})
 
 	Convey("Manages closing connections in different states", t, func() {
-		p := NewPool("127.0.0.1:8087", 50)
+		n := 10
+		p := NewPool("127.0.0.1:8087", n)
 
 		// Get a single connection, wait and re-put
 		doStuff := func(p *Pool) {
@@ -145,32 +149,32 @@ func TestPool(t *testing.T) {
 			So(err, ShouldEqual, nil)
 
 			// Do some stuff
-			time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 			conn.addr = "127.0.0.1:999999"
 			p.Fail(conn)
 		}
 
-		// doFailOther := func(p *Pool) {
-		// 	conn, err := p.Get()
-		// 	So(err, ShouldEqual, nil)
-		// 	time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond)
-		// 	p.Fail(conn)
-		// }
+		doFailOther := func(p *Pool) {
+			conn, err := p.Get()
+			So(err, ShouldEqual, nil)
+			time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+			p.Fail(conn)
+		}
 
 		// Spawn healthy connections
-		for i := 0; i < 10; i++ {
+		for i := 0; i < n/3; i++ {
 			go doStuff(p)
 		}
 
 		// Spawn conns that wont dial
-		for i := 0; i < 10; i++ {
+		for i := 0; i < n/3; i++ {
 			go doFailDial(p)
 		}
 
 		// Spawn conns that fail for another reason
-		// for i := 0; i < 10; i++ {
-		// 	go doFailOther(p)
-		// }
+		for i := 0; i < n/3; i++ {
+			go doFailOther(p)
+		}
 
 		// Wait for things to happen
 		time.Sleep(500 * time.Millisecond)
