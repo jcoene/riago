@@ -3,6 +3,7 @@ package riago
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -157,6 +158,12 @@ func TestClientKV(t *testing.T) {
 		})
 
 		Convey("Can list buckets", func() {
+			// Skip this test unless we're in CI
+			if os.Getenv("CI") == "" {
+				t.Logf("Skipping list bucket test outside of CI environment.")
+				return
+			}
+
 			setReq := &RpbSetBucketReq{
 				Bucket: []byte("riago_test"),
 				Props:  &RpbBucketProps{},
