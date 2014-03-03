@@ -132,6 +132,17 @@ func TestClientBucketOperations(t *testing.T) {
 				return
 			}
 
+			putReq := &RpbPutReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("exists"),
+				Content: &RpbContent{
+					Value:       []byte("{}"),
+					ContentType: []byte("application/json"),
+				},
+			}
+			_, putErr := client.Put(putReq)
+			So(putErr, ShouldEqual, nil)
+
 			setReq := &RpbSetBucketReq{
 				Bucket: []byte("riago_test"),
 				Props:  &RpbBucketProps{},
