@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func inst(p *Profile) {
 
 func TestClientInstance(t *testing.T) {
 	Convey("Client instance", t, func() {
-		client := NewClient("127.0.0.1:8087", 3)
+		client := NewClient("127.0.0.1:8087", 1)
 		dur := 500 * time.Millisecond
 
 		Convey("Can set an instrumenter", func() {
@@ -55,21 +56,11 @@ func TestClientInstance(t *testing.T) {
 			So(client.pool.waitTimeout, ShouldEqual, dur)
 		})
 	})
-
-	Convey("Server Operations", t, func() {
-		Convey("Can get server version", func() {
-			client := NewClient("127.0.0.1:8087", 1)
-			resp, err := client.ServerInfo()
-			So(err, ShouldEqual, nil)
-			So(string(resp.GetNode()), ShouldContainSubstring, "@")
-			So(string(resp.GetServerVersion()), ShouldContainSubstring, ".")
-		})
-	})
 }
 
-func TestClientKV(t *testing.T) {
-	Convey("Client KV", t, func() {
-		client := NewClient("127.0.0.1:8087", 3)
+func TestClientErrorHandling(t *testing.T) {
+	Convey("Client Error Handling", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
 		client.SetInstrumenter(inst)
 		client.SetReadTimeout(2 * time.Second)
 		client.SetWriteTimeout(2 * time.Second)
@@ -88,8 +79,26 @@ func TestClientKV(t *testing.T) {
 			_, err := client.MapRed(req)
 			So(err.Error(), ShouldContainSubstring, "invalid_json")
 		})
+	})
+}
 
-		Convey("Can set and get bucket properties", func() {
+func TestClientServerOperations(t *testing.T) {
+	Convey("Client Server Operations", t, func() {
+		Convey("ServerInfo", func() {
+			client := NewClient("127.0.0.1:8087", 1)
+			resp, err := client.ServerInfo()
+			So(err, ShouldEqual, nil)
+			So(string(resp.GetNode()), ShouldContainSubstring, "@")
+			So(string(resp.GetServerVersion()), ShouldContainSubstring, ".")
+		})
+	})
+}
+
+func TestClientBucketOperations(t *testing.T) {
+	Convey("Client Bucket Operations", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
+
+		Convey("SetBucket and GetBucket", func() {
 			two := uint32(2)
 			t := true
 			f := false
@@ -116,7 +125,102 @@ func TestClientKV(t *testing.T) {
 			So(getResp.GetProps().GetLastWriteWins(), ShouldEqual, true)
 		})
 
-		Convey("Can put and get an object", func() {
+		Convey("ListBuckets", func() {
+			// Skip this test unless we're in CI
+			if os.Getenv("CI") == "" {
+				t.Logf("Skipping list bucket test outside of CI environment.")
+				return
+			}
+
+			setReq := &RpbSetBucketReq{
+				Bucket: []byte("riago_test"),
+				Props:  &RpbBucketProps{},
+			}
+
+			setErr := client.SetBucket(setReq)
+			So(setErr, ShouldEqual, nil)
+
+			listReq := &RpbListBucketsReq{}
+			listResp, listErr := client.ListBuckets(listReq)
+			So(listErr, ShouldEqual, nil)
+
+			found := false
+			for _, b := range listResp.GetBuckets() {
+				if string(b) == "riago_test" {
+					found = true
+					break
+				}
+			}
+			So(found, ShouldEqual, true)
+		})
+	})
+}
+
+func TestClient2iOperations(t *testing.T) {
+	Convey("Client 2i Operations", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
+
+		Convey("Index", func() {
+			n := 8
+			keys := make([]string, n)
+			expect := make([]string, 0)
+
+			for i := 0; i < n; i++ {
+				k := fmt.Sprintf("client_test_2i_%d", i)
+				v := fmt.Sprintf("{\"id\": %d}", i)
+
+				if i%2 == 0 {
+					expect = append(expect, fmt.Sprintf("client_test_2i_%d", i))
+				}
+
+				indexes := make([]*RpbPair, 1)
+				indexes[0] = &RpbPair{
+					Key:   []byte("test_id_rem_int"),
+					Value: []byte(fmt.Sprintf("%d", i%2)),
+				}
+
+				keys[i] = k
+				putReq := &RpbPutReq{
+					Bucket: []byte("riago_test"),
+					Key:    []byte(k),
+					Content: &RpbContent{
+						Value:       []byte(v),
+						ContentType: []byte("application/json"),
+						Indexes:     indexes,
+					},
+				}
+
+				_, err := client.Put(putReq)
+				So(err, ShouldEqual, nil)
+			}
+
+			qtype := RpbIndexReq_eq
+			req := &RpbIndexReq{
+				Bucket: []byte("riago_test"),
+				Index:  []byte("test_id_rem_int"),
+				Qtype:  &qtype,
+				Key:    []byte("0"),
+			}
+			resp, err := client.Index(req)
+			So(err, ShouldEqual, nil)
+
+			got := make([]string, len(resp.GetKeys()))
+			for i, bs := range resp.GetKeys() {
+				got[i] = string(bs)
+			}
+			sort.Strings(got)
+
+			So(got, ShouldResemble, expect)
+			So(len(resp.GetKeys()), ShouldEqual, n/2)
+		})
+	})
+}
+
+func TestClientKeyOperations(t *testing.T) {
+	Convey("Client Key Operations", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
+
+		Convey("Put and Get", func() {
 			putValue := "{\"hello\": \"world\"}"
 			putContentType := "application/json"
 
@@ -147,7 +251,7 @@ func TestClientKV(t *testing.T) {
 			So(getContentType, ShouldEqual, putContentType)
 		})
 
-		Convey("Can delete an object", func() {
+		Convey("Del", func() {
 			delReq := &RpbDelReq{
 				Bucket: []byte("riago_test"),
 				Key:    []byte("client_test_del"),
@@ -157,36 +261,7 @@ func TestClientKV(t *testing.T) {
 			So(delErr, ShouldEqual, nil)
 		})
 
-		Convey("Can list buckets", func() {
-			// Skip this test unless we're in CI
-			if os.Getenv("CI") == "" {
-				t.Logf("Skipping list bucket test outside of CI environment.")
-				return
-			}
-
-			setReq := &RpbSetBucketReq{
-				Bucket: []byte("riago_test"),
-				Props:  &RpbBucketProps{},
-			}
-
-			setErr := client.SetBucket(setReq)
-			So(setErr, ShouldEqual, nil)
-
-			listReq := &RpbListBucketsReq{}
-			listResp, listErr := client.ListBuckets(listReq)
-			So(listErr, ShouldEqual, nil)
-
-			found := false
-			for _, b := range listResp.GetBuckets() {
-				if string(b) == "riago_test" {
-					found = true
-					break
-				}
-			}
-			So(found, ShouldEqual, true)
-		})
-
-		Convey("Can list keys", func() {
+		Convey("ListKeys", func() {
 			putValue := "{\"hello\": \"world\"}"
 			putContentType := "application/json"
 
@@ -222,8 +297,14 @@ func TestClientKV(t *testing.T) {
 
 			So(found, ShouldEqual, n)
 		})
+	})
+}
 
-		Convey("Can map reduce", func() {
+func TestClientMapReduce(t *testing.T) {
+	Convey("Client Map Reduce", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
+
+		Convey("MapRed", func() {
 			n := 8
 			keys := make([]string, n)
 
@@ -270,34 +351,28 @@ func TestClientKV(t *testing.T) {
 
 			So(found, ShouldEqual, n)
 		})
-	})
-}
 
-func TestGetManyJson(t *testing.T) {
-	client := NewClient("127.0.0.1:8087", 3)
+		Convey("GetManyJson", func() {
+			n := 15
+			keys := make([]string, n)
+			for i := 0; i < n; i++ {
+				k := fmt.Sprintf("client_test_getmanyjson_%d", i)
+				v := fmt.Sprintf("{\"id\": %d}", i)
 
-	Convey("GetManyJson", t, func() {
-		n := 15
-		keys := make([]string, n)
-		for i := 0; i < n; i++ {
-			k := fmt.Sprintf("client_test_getmanyjson_%d", i)
-			v := fmt.Sprintf("{\"id\": %d}", i)
+				keys[i] = k
+				putReq := &RpbPutReq{
+					Bucket: []byte("riago_test"),
+					Key:    []byte(k),
+					Content: &RpbContent{
+						Value:       []byte(v),
+						ContentType: []byte("application/json"),
+					},
+				}
 
-			keys[i] = k
-			putReq := &RpbPutReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte(k),
-				Content: &RpbContent{
-					Value:       []byte(v),
-					ContentType: []byte("application/json"),
-				},
+				_, err := client.Put(putReq)
+				So(err, ShouldEqual, nil)
 			}
 
-			_, err := client.Put(putReq)
-			So(err, ShouldEqual, nil)
-		}
-
-		Convey("Gets many json documents", func() {
 			jsons, err := client.GetManyJson("riago_test", keys)
 			So(len(jsons), ShouldEqual, n)
 			So(err, ShouldEqual, nil)

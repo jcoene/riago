@@ -117,3 +117,15 @@ func (c *Client) ListKeys(req *RpbListKeysReq) (resps []*RpbListKeysResp, err er
 
 	return
 }
+
+// Perform a Riak Index (2i) request. The protobufs say that it will return
+// multiple responses but it in fact does not.
+func (c *Client) Index(req *RpbIndexReq) (resp *RpbIndexResp, err error) {
+	prof := NewProfile("index", string(req.GetBucket()))
+	defer c.instrument(prof, err)
+
+	resp = &RpbIndexResp{}
+	err = c.do(MsgRpbIndexReq, req, resp, prof)
+
+	return
+}
