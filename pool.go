@@ -2,7 +2,6 @@ package riago
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -130,16 +129,11 @@ func (p *Pool) pinger() {
 		}
 
 		if c, err := p.Get(); err == nil {
-			fmt.Println("conn got ok")
 			if err = c.Ping(); err != nil {
-				fmt.Println("conn ping fail", err)
 				p.Fail(c)
 			} else {
-				fmt.Println("conn ping ok")
 				p.Put(c)
 			}
-		} else {
-			fmt.Println("conn got err", err)
 		}
 	}
 }
