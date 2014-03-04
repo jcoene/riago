@@ -2,6 +2,7 @@ package riago
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,6 +41,8 @@ func NewPool(addr string, count int) (p *Pool) {
 			p.Put(c)
 		}
 	}
+
+	go p.pinger()
 
 	return
 }
@@ -116,6 +119,30 @@ func (p *Pool) Fail(c *Conn) {
 	}()
 }
 
+func (p *Pool) pinger() {
+	t := time.NewTicker(time.Duration(10000.0/p.count) * time.Millisecond)
+	for {
+		<-t.C
+
+		if p.isClosing() {
+			t.Stop()
+			return
+		}
+
+		if c, err := p.Get(); err == nil {
+			fmt.Println("conn got ok")
+			if err = c.Ping(); err != nil {
+				fmt.Println("conn ping fail", err)
+				p.Fail(c)
+			} else {
+				fmt.Println("conn ping ok")
+				p.Put(c)
+			}
+		} else {
+			fmt.Println("conn got err", err)
+		}
+	}
+}
 func (p *Pool) isClosing() bool {
 	return atomic.LoadInt32(&p.closing) == 1
 }

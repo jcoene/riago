@@ -36,6 +36,21 @@ func (c *Conn) Close() error {
 	return c.close()
 }
 
+// Attempts to ping the remote server. Returns an error if the
+// request/response fails.
+func (c *Conn) Ping() (err error) {
+	c.lock()
+	defer c.unlock()
+
+	if err = c.request(MsgRpbPingReq, nil); err != nil {
+		return
+	}
+
+	err = c.response(nil)
+
+	return
+}
+
 // Attempts to recover a downed connection by re-dialing and marking
 // the connection as up in the case of success.
 func (c *Conn) Recover() error {
