@@ -2,7 +2,9 @@
 
 [![Build Status](https://secure.travis-ci.org/jcoene/riago.png?branch=master)](http://travis-ci.org/jcoene/riago)
 
-Riago is a Riak client for Go. It's currently a work in progress.
+Riago is a Riak client for Go.
+
+It's fast and stable, currently being used in production at [Dotabuff](http://dotabuff.com/) handling a peak of about 5k ops/sec.
 
 ## Why another client?
 
@@ -16,7 +18,15 @@ Riago takes a different approach. Based on the assumption that the PBC API is th
 - Connection pooling
 - Instrumentation hooks
 - Customizable retry behavior
-- Sane error handling (operation time errors, safe type assertions)
+- Sane error handling (operation time errors, minimal and safe type assertions)
+
+## Supported Operations
+
+- KV Get, Put, Del, GetBucket, SetBucket, ListBuckets, ListKeys
+- 2i: Index
+- MR: MapRed
+- Search: SearchQuery
+- Yokozuna: YokozunaIndexGet, YokozunaIndexPut, YokozunaIndexDelete, YokozunaSchemaGet, YokozunaSchemaPut
 
 ## Usage Example
 
@@ -51,7 +61,7 @@ func main() {
 
 ## TODO
 
-- Support for more operations
+- Support for Riak 2.0 DT operations
 
 ## License and Credits
 
