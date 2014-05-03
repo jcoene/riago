@@ -4,7 +4,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -62,8 +61,6 @@ func (c *Conn) Recover() error {
 
 // Attempts to connect to the Riak server. Must be called from within a lock.
 func (c *Conn) dial() (err error) {
-	c._assert_locked(true) // xxx: temp
-
 	var tcpAddr *net.TCPAddr
 
 	if tcpAddr, err = net.ResolveTCPAddr("tcp", c.addr); err != nil {
@@ -89,8 +86,6 @@ func (c *Conn) dial() (err error) {
 // Closes the connection, closing the socket (if open) and marking
 // the connection as down. Must be called from within a lock.
 func (c *Conn) close() (err error) {
-	c._assert_locked(true) // xxx: temp
-
 	c.ok = false
 	if c.conn != nil {
 		err = c.conn.Close()
@@ -103,8 +98,6 @@ func (c *Conn) close() (err error) {
 // Encode and write a request to the Riak server. Must be called from
 // within a lock.
 func (c *Conn) request(code byte, req proto.Message) (err error) {
-	c._assert_locked(true) // xxx: temp
-
 	var buf []byte
 
 	if c.conn == nil || !c.ok {
@@ -125,8 +118,6 @@ func (c *Conn) request(code byte, req proto.Message) (err error) {
 // Read and decode a response from the Riak server. Must be called from
 // within a lock.
 func (c *Conn) response(resp proto.Message) (err error) {
-	c._assert_locked(true) // xxx: temp
-
 	var buf []byte
 
 	if buf, err = c.read(); err != nil {
@@ -143,8 +134,6 @@ func (c *Conn) response(resp proto.Message) (err error) {
 // Write a fully encoded buffer to the connection, establishing a deadline if
 // a timeout is set.
 func (c *Conn) write(buf []byte) (err error) {
-	c._assert_locked(true) // xxx: temp
-
 	if c.writeTimeout > 0 {
 		c.conn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
 	}
@@ -156,8 +145,6 @@ func (c *Conn) write(buf []byte) (err error) {
 // Read a length-prefixed buffer from the connection, establishing a deadline
 // if a timeout is set.
 func (c *Conn) read() (buf []byte, err error) {
-	c._assert_locked(true) // xxx: temp
-
 	var sizebuf []byte
 	var size int
 
@@ -180,21 +167,12 @@ func (c *Conn) read() (buf []byte, err error) {
 	return
 }
 
-// Temporary method to validate nesting of method calls
-func (c *Conn) _assert_locked(b bool) {
-	if (atomic.LoadInt32(&c.padlock) == 1) != b {
-		panic("lock error")
-	}
-}
-
 // Obtain a big lock on everything scary
 func (c *Conn) lock() {
 	c.mutex.Lock()
-	atomic.StoreInt32(&c.padlock, 1)
 }
 
 // Release a big lock on everything scary
 func (c *Conn) unlock() {
 	c.mutex.Unlock()
-	atomic.StoreInt32(&c.padlock, 0)
 }
