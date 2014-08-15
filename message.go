@@ -51,6 +51,10 @@ const (
 	MsgRpbYokozunaSchemaGetReq   = 58
 	MsgRpbYokozunaSchemaGetResp  = 59
 	MsgRpbYokozunaSchemaPutReq   = 60
+	MsgDtFetchReq                = 80
+	MsgDtFetchResp               = 81
+	MsgDtUpdateReq               = 82
+	MsgDtUpdateResp              = 83
 )
 
 var (
@@ -60,7 +64,7 @@ var (
 )
 
 // Encodes a request code and proto structure into a message byte buffer
-func encode(code byte, req proto.Message) (buf []byte, err error) {
+func encode(code uint8, req proto.Message) (buf []byte, err error) {
 	var reqbuf []byte
 	var size int32
 
@@ -80,7 +84,7 @@ func encode(code byte, req proto.Message) (buf []byte, err error) {
 // Decodes a message byte buffer into a proto response, error code or nil
 // Resulting object depends on response type.
 func decode(buf []byte, resp proto.Message) (err error) {
-	var code byte
+	var code uint8
 	var respbuf []byte
 
 	if len(buf) < 1 {
@@ -94,11 +98,6 @@ func decode(buf []byte, resp proto.Message) (err error) {
 		respbuf = buf[1:]
 	} else {
 		respbuf = make([]byte, 0)
-	}
-
-	if code < 0 || code > 60 {
-		err = ErrInvalidResponseCode
-		return
 	}
 
 	switch code {
