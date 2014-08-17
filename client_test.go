@@ -312,6 +312,12 @@ func TestClientKeyOperations(t *testing.T) {
 }
 
 func TestClientCRDTOperations(t *testing.T) {
+	// Skip this test if we're in CI
+	if os.Getenv("CI") != "" {
+		t.Logf("Skipping CRDT test inside of CI environment.")
+		return
+	}
+
 	Convey("Client CRDT Operations", t, func() {
 		client := NewClient("127.0.0.1:8087", 1)
 
