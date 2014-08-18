@@ -311,6 +311,81 @@ func TestClientKeyOperations(t *testing.T) {
 	})
 }
 
+func TestClientCRDTOperations(t *testing.T) {
+	// Skip this test if we're in CI
+	if os.Getenv("CI") != "" {
+		t.Logf("Skipping CRDT test inside of CI environment.")
+		return
+	}
+
+	Convey("Client CRDT Operations", t, func() {
+		client := NewClient("127.0.0.1:8087", 1)
+
+		Convey("Update and Fetch", func() {
+			startReq := &DtFetchReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("client_test_put_get"),
+				Type:   []byte("riago_dt_test"),
+			}
+
+			startResp, startErr := client.DtFetch(startReq)
+			So(startErr, ShouldEqual, nil)
+
+			startType := DtFetchResp_DataType(startResp.GetType())
+			startCounterValue := int64(startResp.GetValue().GetCounterValue())
+
+			So(startType, ShouldEqual, DtFetchResp_COUNTER)
+
+			var putIncrement int64 = 1
+
+			putReq := &DtUpdateReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("client_test_put_get"),
+				Type:   []byte("riago_dt_test"),
+				Op: &DtOp{
+					CounterOp: &CounterOp{
+						Increment: &putIncrement,
+					},
+				},
+			}
+
+			_, putErr := client.DtUpdate(putReq)
+			So(putErr, ShouldEqual, nil)
+
+			getReq := &DtFetchReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("client_test_put_get"),
+				Type:   []byte("riago_dt_test"),
+			}
+
+			getResp, getErr := client.DtFetch(getReq)
+			So(getErr, ShouldEqual, nil)
+
+			getType := DtFetchResp_DataType(getResp.GetType())
+			getCounterValue := int64(getResp.GetValue().GetCounterValue())
+
+			So(getType, ShouldEqual, DtFetchResp_COUNTER)
+			So(getCounterValue, ShouldEqual, startCounterValue+1)
+
+			var deIncrement int64 = -1
+
+			deReq := &DtUpdateReq{
+				Bucket: []byte("riago_test"),
+				Key:    []byte("client_test_put_get"),
+				Type:   []byte("riago_dt_test"),
+				Op: &DtOp{
+					CounterOp: &CounterOp{
+						Increment: &deIncrement,
+					},
+				},
+			}
+
+			_, deErr := client.DtUpdate(deReq)
+			So(deErr, ShouldEqual, nil)
+		})
+	})
+}
+
 func TestClientMapReduce(t *testing.T) {
 	Convey("Client Map Reduce", t, func() {
 		client := NewClient("127.0.0.1:8087", 1)

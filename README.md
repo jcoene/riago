@@ -59,9 +59,17 @@ func main() {
 }
 ```
 
-## TODO
+## Running Tests
 
-- Support for Riak 2.0 DT operations
+To run tests, install Riak 2.0 and configure appropriately:
+
+1. Set the backend to [leveldb](http://docs.basho.com/riak/2.0.0/ops/advanced/backends/leveldb/) in `riak.conf`:
+    `storage_backend = leveldb`
+2. Create the `riago_dt_test` data type:
+    `riak-admin bucket-type create riago_dt_test '{"props":{"datatype":"counter"}}'`
+3. Activate the `riago_dt_test` data type:
+    `riak-admin bucket-type activate riago_dt_test`
+
 
 ## License and Credits
 

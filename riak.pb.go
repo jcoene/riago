@@ -74,12 +74,10 @@ It has these top-level messages:
 package riago
 
 import proto "code.google.com/p/goprotobuf/proto"
-import json "encoding/json"
 import math "math"
 
-// Reference proto, json, and math imports to suppress error if they are not otherwise used.
+// Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = &json.SyntaxError{}
 var _ = math.Inf
 
 // Used by riak_repl bucket fixup
@@ -574,7 +572,9 @@ type RpbBucketProps struct {
 	// Search index
 	SearchIndex []byte `protobuf:"bytes,25,opt,name=search_index" json:"search_index,omitempty"`
 	// KV Datatypes
-	Datatype         []byte `protobuf:"bytes,26,opt,name=datatype" json:"datatype,omitempty"`
+	Datatype []byte `protobuf:"bytes,26,opt,name=datatype" json:"datatype,omitempty"`
+	// KV strong consistency
+	Consistent       *bool  `protobuf:"varint,27,opt,name=consistent" json:"consistent,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -765,6 +765,13 @@ func (m *RpbBucketProps) GetDatatype() []byte {
 		return m.Datatype
 	}
 	return nil
+}
+
+func (m *RpbBucketProps) GetConsistent() bool {
+	if m != nil && m.Consistent != nil {
+		return *m.Consistent
+	}
+	return false
 }
 
 // Authentication request
