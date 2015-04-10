@@ -25,6 +25,9 @@
 ** Revision: 1.4
 */
 
+// Go package specifiers
+option go_package = "riago";
+
 // Java package specifiers
 option java_package = "com.basho.riak.protobuf";
 option java_outer_classname = "RiakPB";
