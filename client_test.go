@@ -3,7 +3,6 @@ package riago
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"testing"
