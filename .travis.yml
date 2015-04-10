@@ -8,6 +8,7 @@ services:
 
 install:
   - export PATH=$PATH:$HOME/gopath/bin
+  - go get github.com/golang/protobuf/proto
   - go get golang.org/x/tools/cmd/cover
 
 script:
