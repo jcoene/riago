@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/golang/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 type WithId struct {
@@ -21,455 +22,422 @@ func inst(p *Profile) {
 }
 
 func TestClientInstance(t *testing.T) {
-	Convey("Client instance", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
-		dur := 500 * time.Millisecond
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("Can set an instrumenter", func() {
-			client.SetInstrumenter(inst)
-			So(client.instrumenter, ShouldEqual, inst)
-		})
+	dur := 500 * time.Millisecond
 
-		Convey("Can set retry attempts", func() {
-			client.SetRetryAttempts(3)
-			So(client.retryAttempts, ShouldEqual, 3)
-		})
+	// Can set an instrumenter
+	client.SetInstrumenter(inst)
+	assert.Equal(inst, client.instrumenter, inst)
 
-		Convey("Can set retry delay", func() {
-			dur := time.Duration(500 * time.Millisecond)
-			client.SetRetryDelay(dur)
-			So(client.retryDelay, ShouldEqual, dur)
-		})
+	// Can set retry attempts
+	client.SetRetryAttempts(3)
+	assert.Equal(3, client.retryAttempts)
 
-		Convey("Can set read timeout", func() {
-			client.SetReadTimeout(dur)
-			So(client.readTimeout, ShouldEqual, dur)
-		})
+	// Can set retry delay
+	dur = time.Duration(500 * time.Millisecond)
+	client.SetRetryDelay(dur)
+	assert.Equal(dur, client.retryDelay)
 
-		Convey("Can set write timeout", func() {
-			client.SetWriteTimeout(dur)
-			So(client.writeTimeout, ShouldEqual, dur)
-		})
+	// Can set read timeout
+	client.SetReadTimeout(dur)
+	assert.Equal(dur, client.readTimeout)
 
-		Convey("Can set pool wait timeout", func() {
-			client.SetWaitTimeout(dur)
-			So(client.pool.waitTimeout, ShouldEqual, dur)
-		})
-	})
+	// Can set write timeout
+	client.SetWriteTimeout(dur)
+	assert.Equal(dur, client.writeTimeout)
+
+	// Can set pool wait timeout
+	client.SetWaitTimeout(dur)
+	assert.Equal(dur, client.pool.waitTimeout)
 }
 
 func TestClientErrorHandling(t *testing.T) {
-	Convey("Client Error Handling", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
-		client.SetInstrumenter(inst)
-		client.SetReadTimeout(2 * time.Second)
-		client.SetWriteTimeout(2 * time.Second)
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("Returns client errors properly", func() {
-			req := &RpbPutReq{}
-			_, err := client.Put(req)
-			So(err.Error(), ShouldContainSubstring, "required field")
-		})
+	client.SetInstrumenter(inst)
+	client.SetReadTimeout(2 * time.Second)
+	client.SetWriteTimeout(2 * time.Second)
 
-		Convey("Returns service errors properly", func() {
-			req := &RpbMapRedReq{
-				Request:     []byte("this isn't going to work at all"),
-				ContentType: []byte("application/json"),
-			}
-			_, err := client.MapRed(req)
-			So(err.Error(), ShouldContainSubstring, "invalid_json")
-		})
-	})
+	// Returns client errors properly
+	putReq := &RpbPutReq{}
+	_, err := client.Put(putReq)
+	assert.Contains(err.Error(), "required field")
+
+	// Returns service errors properly
+	getReq := &RpbMapRedReq{
+		Request:     []byte("this isn't going to work at all"),
+		ContentType: []byte("application/json"),
+	}
+	_, err = client.MapRed(getReq)
+	assert.Contains(err.Error(), "invalid_json")
 }
 
 func TestClientServerOperations(t *testing.T) {
-	Convey("Client Server Operations", t, func() {
-		Convey("ServerInfo", func() {
-			client := NewClient("127.0.0.1:8087", 1)
-			resp, err := client.ServerInfo()
-			So(err, ShouldEqual, nil)
-			So(string(resp.GetNode()), ShouldContainSubstring, "@")
-			So(string(resp.GetServerVersion()), ShouldContainSubstring, ".")
-		})
-	})
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
+
+	// ServerInfo
+	resp, err := client.ServerInfo()
+
+	assert.Nil(err)
+	assert.Contains(string(resp.GetNode()), "@")
+	assert.Contains(string(resp.GetServerVersion()), ".")
 }
 
 func TestClientBucketOperations(t *testing.T) {
-	Convey("Client Bucket Operations", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("SetBucket and GetBucket", func() {
-			two := uint32(2)
-			t := true
-			f := false
-			setReq := &RpbSetBucketReq{
-				Bucket: []byte("riago_test"),
-				Props: &RpbBucketProps{
-					NVal:          &two,
-					AllowMult:     &f,
-					LastWriteWins: &t,
-				},
-			}
+	// SetBucket and GetBucket
+	setReq := &RpbSetBucketReq{
+		Bucket: []byte("riago_test"),
+		Props: &RpbBucketProps{
+			NVal:          proto.Uint32(2),
+			AllowMult:     proto.Bool(false),
+			LastWriteWins: proto.Bool(true),
+		},
+	}
 
-			setErr := client.SetBucket(setReq)
-			So(setErr, ShouldEqual, nil)
+	err := client.SetBucket(setReq)
+	assert.Nil(err)
 
-			getReq := &RpbGetBucketReq{
-				Bucket: []byte("riago_test"),
-			}
+	getReq := &RpbGetBucketReq{
+		Bucket: []byte("riago_test"),
+	}
 
-			getResp, getErr := client.GetBucket(getReq)
-			So(getErr, ShouldEqual, nil)
-			So(getResp.GetProps().GetNVal(), ShouldEqual, 2)
-			So(getResp.GetProps().GetAllowMult(), ShouldEqual, false)
-			So(getResp.GetProps().GetLastWriteWins(), ShouldEqual, true)
-		})
+	getResp, err := client.GetBucket(getReq)
+	assert.Nil(err)
+	assert.Equal(uint32(2), getResp.GetProps().GetNVal())
+	assert.Equal(false, getResp.GetProps().GetAllowMult())
+	assert.Equal(true, getResp.GetProps().GetLastWriteWins())
+}
 
-		Convey("ListBuckets", func() {
-			// Skip this test unless we're in CI
-			if os.Getenv("CI") == "" {
-				t.Logf("Skipping list bucket test outside of CI environment.")
-				return
-			}
+func TestClientListBucket(t *testing.T) {
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-			putReq := &RpbPutReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("exists"),
-				Content: &RpbContent{
-					Value:       []byte("{}"),
-					ContentType: []byte("application/json"),
-				},
-			}
-			_, putErr := client.Put(putReq)
-			So(putErr, ShouldEqual, nil)
+	putReq := &RpbPutReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("exists"),
+		Content: &RpbContent{
+			Value:       []byte("{}"),
+			ContentType: []byte("application/json"),
+		},
+	}
+	_, err := client.Put(putReq)
+	assert.Nil(err)
 
-			setReq := &RpbSetBucketReq{
-				Bucket: []byte("riago_test"),
-				Props:  &RpbBucketProps{},
-			}
+	setReq := &RpbSetBucketReq{
+		Bucket: []byte("riago_test"),
+		Props:  &RpbBucketProps{},
+	}
 
-			setErr := client.SetBucket(setReq)
-			So(setErr, ShouldEqual, nil)
+	err = client.SetBucket(setReq)
+	assert.Nil(err)
 
-			listReq := &RpbListBucketsReq{}
-			listResp, listErr := client.ListBuckets(listReq)
-			So(listErr, ShouldEqual, nil)
+	listReq := &RpbListBucketsReq{}
+	listResp, err := client.ListBuckets(listReq)
+	assert.Nil(err)
 
-			found := false
-			for _, b := range listResp.GetBuckets() {
-				if string(b) == "riago_test" {
-					found = true
-					break
-				}
-			}
-			So(found, ShouldEqual, true)
-		})
-	})
+	found := false
+	for _, b := range listResp.GetBuckets() {
+		if string(b) == "riago_test" {
+			found = true
+			break
+		}
+	}
+	assert.True(found)
 }
 
 func TestClient2iOperations(t *testing.T) {
-	Convey("Client 2i Operations", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("Index", func() {
-			n := 8
-			keys := make([]string, n)
-			expect := make([]string, 0)
+	n := 8
+	keys := make([]string, n)
+	expect := make([]string, 0)
 
-			for i := 0; i < n; i++ {
-				k := fmt.Sprintf("client_test_2i_%d", i)
-				v := fmt.Sprintf("{\"id\": %d}", i)
+	for i := 0; i < n; i++ {
+		k := fmt.Sprintf("client_test_2i_%d", i)
+		v := fmt.Sprintf("{\"id\": %d}", i)
 
-				if i%2 == 0 {
-					expect = append(expect, fmt.Sprintf("client_test_2i_%d", i))
-				}
+		if i%2 == 0 {
+			expect = append(expect, fmt.Sprintf("client_test_2i_%d", i))
+		}
 
-				indexes := make([]*RpbPair, 1)
-				indexes[0] = &RpbPair{
-					Key:   []byte("test_id_rem_int"),
-					Value: []byte(fmt.Sprintf("%d", i%2)),
-				}
+		indexes := make([]*RpbPair, 1)
+		indexes[0] = &RpbPair{
+			Key:   []byte("test_id_rem_int"),
+			Value: []byte(fmt.Sprintf("%d", i%2)),
+		}
 
-				keys[i] = k
-				putReq := &RpbPutReq{
-					Bucket: []byte("riago_test"),
-					Key:    []byte(k),
-					Content: &RpbContent{
-						Value:       []byte(v),
-						ContentType: []byte("application/json"),
-						Indexes:     indexes,
-					},
-				}
+		keys[i] = k
+		putReq := &RpbPutReq{
+			Bucket: []byte("riago_test"),
+			Key:    []byte(k),
+			Content: &RpbContent{
+				Value:       []byte(v),
+				ContentType: []byte("application/json"),
+				Indexes:     indexes,
+			},
+		}
 
-				_, err := client.Put(putReq)
-				So(err, ShouldEqual, nil)
-			}
+		_, err := client.Put(putReq)
+		assert.Nil(err)
+	}
 
-			qtype := RpbIndexReq_eq
-			req := &RpbIndexReq{
-				Bucket: []byte("riago_test"),
-				Index:  []byte("test_id_rem_int"),
-				Qtype:  &qtype,
-				Key:    []byte("0"),
-			}
-			resp, err := client.Index(req)
-			So(err, ShouldEqual, nil)
+	qtype := RpbIndexReq_eq
+	req := &RpbIndexReq{
+		Bucket: []byte("riago_test"),
+		Index:  []byte("test_id_rem_int"),
+		Qtype:  &qtype,
+		Key:    []byte("0"),
+	}
+	resp, err := client.Index(req)
+	assert.Nil(err)
 
-			got := make([]string, len(resp.GetKeys()))
-			for i, bs := range resp.GetKeys() {
-				got[i] = string(bs)
-			}
-			sort.Strings(got)
+	got := make([]string, len(resp.GetKeys()))
+	for i, bs := range resp.GetKeys() {
+		got[i] = string(bs)
+	}
+	sort.Strings(got)
 
-			So(got, ShouldResemble, expect)
-			So(len(resp.GetKeys()), ShouldEqual, n/2)
-		})
-	})
+	assert.Equal(expect, got)
+	assert.Equal(n/2, len(resp.GetKeys()))
 }
 
 func TestClientKeyOperations(t *testing.T) {
-	Convey("Client Key Operations", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("Put and Get", func() {
-			putValue := "{\"hello\": \"world\"}"
-			putContentType := "application/json"
+	// Put and Get
+	putValue := "{\"hello\": \"world\"}"
+	putContentType := "application/json"
 
-			putReq := &RpbPutReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-				Content: &RpbContent{
-					Value:       []byte(putValue),
-					ContentType: []byte(putContentType),
-				},
+	putReq := &RpbPutReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+		Content: &RpbContent{
+			Value:       []byte(putValue),
+			ContentType: []byte(putContentType),
+		},
+	}
+
+	_, err := client.Put(putReq)
+	assert.Nil(err)
+
+	getReq := &RpbGetReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+	}
+
+	getResp, err := client.Get(getReq)
+	assert.Nil(err)
+
+	getValue := string(getResp.GetContent()[0].GetValue())
+	getContentType := string(getResp.GetContent()[0].GetContentType())
+
+	assert.Equal(putValue, getValue)
+	assert.Equal(putContentType, getContentType)
+
+	// Del
+	delReq := &RpbDelReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_del"),
+	}
+
+	err = client.Del(delReq)
+	assert.Nil(err)
+
+	// ListKeys
+
+	n := 11
+	for i := 0; i < n; i++ {
+		putReq := &RpbPutReq{
+			Bucket: []byte("riago_test"),
+			Key:    []byte(fmt.Sprintf("client_test_list_keys_%d", i)),
+			Content: &RpbContent{
+				Value:       []byte(putValue),
+				ContentType: []byte(putContentType),
+			},
+		}
+
+		_, err = client.Put(putReq)
+		assert.Nil(err)
+	}
+
+	listReq := &RpbListKeysReq{
+		Bucket: []byte("riago_test"),
+	}
+	listResps, err := client.ListKeys(listReq)
+	assert.Nil(err)
+
+	found := 0
+	for _, r := range listResps {
+		for _, k := range r.GetKeys() {
+			if f, _ := regexp.Match("client_test_list_keys_", k); f {
+				found += 1
 			}
+		}
+	}
 
-			_, putErr := client.Put(putReq)
-			So(putErr, ShouldEqual, nil)
-
-			getReq := &RpbGetReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-			}
-
-			getResp, getErr := client.Get(getReq)
-			So(getErr, ShouldEqual, nil)
-
-			getValue := string(getResp.GetContent()[0].GetValue())
-			getContentType := string(getResp.GetContent()[0].GetContentType())
-
-			So(getValue, ShouldEqual, putValue)
-			So(getContentType, ShouldEqual, putContentType)
-		})
-
-		Convey("Del", func() {
-			delReq := &RpbDelReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_del"),
-			}
-
-			delErr := client.Del(delReq)
-			So(delErr, ShouldEqual, nil)
-		})
-
-		Convey("ListKeys", func() {
-			putValue := "{\"hello\": \"world\"}"
-			putContentType := "application/json"
-
-			n := 11
-			for i := 0; i < n; i++ {
-				putReq := &RpbPutReq{
-					Bucket: []byte("riago_test"),
-					Key:    []byte(fmt.Sprintf("client_test_list_keys_%d", i)),
-					Content: &RpbContent{
-						Value:       []byte(putValue),
-						ContentType: []byte(putContentType),
-					},
-				}
-
-				_, err := client.Put(putReq)
-				So(err, ShouldEqual, nil)
-			}
-
-			listReq := &RpbListKeysReq{
-				Bucket: []byte("riago_test"),
-			}
-			listResps, listErr := client.ListKeys(listReq)
-			So(listErr, ShouldEqual, nil)
-
-			found := 0
-			for _, r := range listResps {
-				for _, k := range r.GetKeys() {
-					if f, _ := regexp.Match("client_test_list_keys_", k); f {
-						found += 1
-					}
-				}
-			}
-
-			So(found, ShouldEqual, n)
-		})
-	})
+	assert.Equal(n, found)
 }
 
 func TestClientCRDTOperations(t *testing.T) {
-	// Skip this test if we're in CI
-	if os.Getenv("CI") != "" {
-		t.Logf("Skipping CRDT test inside of CI environment.")
-		return
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
+
+	// Initial fetch
+	startReq := &DtFetchReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+		Type:   []byte("riago_dt_test"),
 	}
 
-	Convey("Client CRDT Operations", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
+	startResp, err := client.DtFetch(startReq)
+	assert.Nil(err)
 
-		Convey("Update and Fetch", func() {
-			startReq := &DtFetchReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-				Type:   []byte("riago_dt_test"),
-			}
+	startType := DtFetchResp_DataType(startResp.GetType())
+	startCounterValue := int64(startResp.GetValue().GetCounterValue())
 
-			startResp, startErr := client.DtFetch(startReq)
-			So(startErr, ShouldEqual, nil)
+	assert.Equal(DtFetchResp_COUNTER, startType)
 
-			startType := DtFetchResp_DataType(startResp.GetType())
-			startCounterValue := int64(startResp.GetValue().GetCounterValue())
+	// Increment operation
+	var putIncrement int64 = 1
 
-			So(startType, ShouldEqual, DtFetchResp_COUNTER)
+	putReq := &DtUpdateReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+		Type:   []byte("riago_dt_test"),
+		Op: &DtOp{
+			CounterOp: &CounterOp{
+				Increment: &putIncrement,
+			},
+		},
+	}
 
-			var putIncrement int64 = 1
+	_, err = client.DtUpdate(putReq)
+	assert.Nil(err)
 
-			putReq := &DtUpdateReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-				Type:   []byte("riago_dt_test"),
-				Op: &DtOp{
-					CounterOp: &CounterOp{
-						Increment: &putIncrement,
-					},
-				},
-			}
+	getReq := &DtFetchReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+		Type:   []byte("riago_dt_test"),
+	}
 
-			_, putErr := client.DtUpdate(putReq)
-			So(putErr, ShouldEqual, nil)
+	getResp, err := client.DtFetch(getReq)
+	assert.Nil(err)
 
-			getReq := &DtFetchReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-				Type:   []byte("riago_dt_test"),
-			}
+	getType := DtFetchResp_DataType(getResp.GetType())
+	getCounterValue := int64(getResp.GetValue().GetCounterValue())
 
-			getResp, getErr := client.DtFetch(getReq)
-			So(getErr, ShouldEqual, nil)
+	assert.Equal(DtFetchResp_COUNTER, getType)
+	assert.Equal(startCounterValue+1, getCounterValue)
 
-			getType := DtFetchResp_DataType(getResp.GetType())
-			getCounterValue := int64(getResp.GetValue().GetCounterValue())
+	// Decrement
+	var deIncrement int64 = -1
 
-			So(getType, ShouldEqual, DtFetchResp_COUNTER)
-			So(getCounterValue, ShouldEqual, startCounterValue+1)
+	deReq := &DtUpdateReq{
+		Bucket: []byte("riago_test"),
+		Key:    []byte("client_test_put_get"),
+		Type:   []byte("riago_dt_test"),
+		Op: &DtOp{
+			CounterOp: &CounterOp{
+				Increment: &deIncrement,
+			},
+		},
+	}
 
-			var deIncrement int64 = -1
-
-			deReq := &DtUpdateReq{
-				Bucket: []byte("riago_test"),
-				Key:    []byte("client_test_put_get"),
-				Type:   []byte("riago_dt_test"),
-				Op: &DtOp{
-					CounterOp: &CounterOp{
-						Increment: &deIncrement,
-					},
-				},
-			}
-
-			_, deErr := client.DtUpdate(deReq)
-			So(deErr, ShouldEqual, nil)
-		})
-	})
+	_, err = client.DtUpdate(deReq)
+	assert.Nil(err)
 }
 
 func TestClientMapReduce(t *testing.T) {
-	Convey("Client Map Reduce", t, func() {
-		client := NewClient("127.0.0.1:8087", 1)
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-		Convey("MapRed", func() {
-			n := 8
-			keys := make([]string, n)
+	n := 8
+	keys := make([]string, n)
 
-			for i := 0; i < n; i++ {
-				k := fmt.Sprintf("client_test_mapred_%d", i)
-				v := fmt.Sprintf("{\"id\": %d}", i)
+	for i := 0; i < n; i++ {
+		k := fmt.Sprintf("client_test_mapred_%d", i)
+		v := fmt.Sprintf("{\"id\": %d}", i)
 
-				keys[i] = k
-				putReq := &RpbPutReq{
-					Bucket: []byte("riago_test"),
-					Key:    []byte(k),
-					Content: &RpbContent{
-						Value:       []byte(v),
-						ContentType: []byte("application/json"),
-					},
-				}
-
-				_, err := client.Put(putReq)
-				So(err, ShouldEqual, nil)
-			}
-
-			query := genUnionMapRedQuery("riago_test", keys)
-
-			mapRedReq := &RpbMapRedReq{
-				Request:     []byte(query),
+		keys[i] = k
+		putReq := &RpbPutReq{
+			Bucket: []byte("riago_test"),
+			Key:    []byte(k),
+			Content: &RpbContent{
+				Value:       []byte(v),
 				ContentType: []byte("application/json"),
-			}
-			mapRedResps, mapRedErr := client.MapRed(mapRedReq)
-			So(mapRedErr, ShouldEqual, nil)
+			},
+		}
 
-			found := 0
-			for _, r := range mapRedResps {
-				if r.Response == nil {
-					continue
-				}
+		_, err := client.Put(putReq)
+		assert.Nil(err)
+	}
 
-				var rvals []string
-				err := json.Unmarshal(r.GetResponse(), &rvals)
-				So(err, ShouldEqual, nil)
-				for _, _ = range rvals {
-					found += 1
-				}
-			}
+	query := genUnionMapRedQuery("riago_test", keys)
 
-			So(found, ShouldEqual, n)
-		})
+	mapRedReq := &RpbMapRedReq{
+		Request:     []byte(query),
+		ContentType: []byte("application/json"),
+	}
+	mapRedResps, err := client.MapRed(mapRedReq)
+	assert.Nil(err)
 
-		Convey("GetManyJson", func() {
-			n := 15
-			keys := make([]string, n)
-			for i := 0; i < n; i++ {
-				k := fmt.Sprintf("client_test_getmanyjson_%d", i)
-				v := fmt.Sprintf("{\"id\": %d}", i)
+	found := 0
+	for _, r := range mapRedResps {
+		if r.Response == nil {
+			continue
+		}
 
-				keys[i] = k
-				putReq := &RpbPutReq{
-					Bucket: []byte("riago_test"),
-					Key:    []byte(k),
-					Content: &RpbContent{
-						Value:       []byte(v),
-						ContentType: []byte("application/json"),
-					},
-				}
+		var rvals []string
+		err = json.Unmarshal(r.GetResponse(), &rvals)
+		assert.Nil(err)
+		for _, _ = range rvals {
+			found += 1
+		}
+	}
 
-				_, err := client.Put(putReq)
-				So(err, ShouldEqual, nil)
-			}
+	assert.Equal(n, found)
+}
 
-			jsons, err := client.GetManyJson("riago_test", keys)
-			So(len(jsons), ShouldEqual, n)
-			So(err, ShouldEqual, nil)
+func TestClientGetManyJson(t *testing.T) {
+	assert := assert.New(t)
+	client := NewClient("127.0.0.1:8087", 1)
 
-			for _, j := range jsons {
-				tmp := new(WithId)
-				err = json.Unmarshal([]byte(j), &tmp)
-				So(err, ShouldEqual, nil)
-				So(tmp.Id, ShouldBeGreaterThan, -1)
-				So(tmp.Id, ShouldBeLessThan, n+1)
-			}
-		})
-	})
+	n := 15
+	keys := make([]string, n)
+	for i := 0; i < n; i++ {
+		k := fmt.Sprintf("client_test_getmanyjson_%d", i)
+		v := fmt.Sprintf("{\"id\": %d}", i)
+
+		keys[i] = k
+		putReq := &RpbPutReq{
+			Bucket: []byte("riago_test"),
+			Key:    []byte(k),
+			Content: &RpbContent{
+				Value:       []byte(v),
+				ContentType: []byte("application/json"),
+			},
+		}
+
+		_, err := client.Put(putReq)
+		assert.Nil(err)
+	}
+
+	jsons, err := client.GetManyJson("riago_test", keys)
+	assert.Nil(err)
+	assert.Equal(n, len(jsons))
+
+	for _, j := range jsons {
+		tmp := new(WithId)
+		err = json.Unmarshal([]byte(j), &tmp)
+		assert.Nil(err)
+	}
 }
