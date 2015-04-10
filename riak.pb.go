@@ -3,7 +3,7 @@
 // DO NOT EDIT!
 
 /*
-Package riak is a generated protocol buffer package.
+Package riago is a generated protocol buffer package.
 
 It is generated from these files:
 	riak.proto
@@ -73,7 +73,7 @@ It has these top-level messages:
 */
 package riago
 
-import proto "code.google.com/p/goprotobuf/proto"
+import proto "github.com/golang/protobuf/proto"
 import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.

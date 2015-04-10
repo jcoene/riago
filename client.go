@@ -3,7 +3,7 @@ package riago
 import (
 	"time"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // Client represents a Riak client instance.
