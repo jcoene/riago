@@ -3,6 +3,7 @@ package riago
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"testing"
@@ -287,6 +288,11 @@ func TestClientKeyOperations(t *testing.T) {
 }
 
 func TestClientCRDTOperations(t *testing.T) {
+	// Travis doesn't have Riak 2.0
+	if os.Getenv("CI") != "" {
+		t.Skipf("Skipping CRDT tests in CI environment.")
+	}
+
 	assert := assert.New(t)
 	client := NewClient("127.0.0.1:8087", 1)
 
