@@ -29,7 +29,7 @@ func TestClientInstance(t *testing.T) {
 
 	// Can set an instrumenter
 	client.SetInstrumenter(inst)
-	assert.Equal(inst, client.instrumenter, inst)
+	assert.Equal(fmt.Sprintf("%+v", inst), fmt.Sprintf("%+v", client.instrumenter))
 
 	// Can set retry attempts
 	client.SetRetryAttempts(3)

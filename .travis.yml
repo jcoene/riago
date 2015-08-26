@@ -1,15 +1,16 @@
+sudo: false
 language: go
 
 go:
   - 1.4
+  - 1.5
 
 services:
   - riak
 
 install:
-  - export PATH=$PATH:$HOME/gopath/bin
   - go get golang.org/x/tools/cmd/cover
 
 script:
   - go get -t
-  - go test -v -cover
+  - go test -cover -race -v
